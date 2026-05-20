@@ -1,0 +1,36 @@
+#basic
+requests
+python-dotenv
+retry
+
+#ai
+openai
+langchain
+langchain-openai
+langchain-community
+langchain-text-splitters
+langchain-neo4j
+semantic-kernel
+
+#neo4j
+neo4j-graphrag
+neo4j-graphrag[openai]
+neo4j-rust-ext
+graphdatascience
+
+#streamlit
+streamlit
+streamlit-chat
+streamlit-chat-media
+streamlit_code_editor
+
+#schema tools
+rdflib
+
+#data analytics
+numpy
+pandas
+plotly
+tqdm
+altair<5
+jupyter

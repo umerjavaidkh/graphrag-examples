@@ -2,13 +2,12 @@ import os
 
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
+from openai import OpenAI
 
 load_dotenv()
-NEO4J_URI=os.getenv("NEO4J_URI")
-NEO4J_USERNAME=os.getenv("NEO4J_USERNAME")
-NEO4J_PASSWORD=os.getenv("NEO4J_PASSWORD")
-
-
+NEO4J_URI = os.getenv("NEO4J_URI")
+NEO4J_USERNAME = os.getenv("NEO4J_USERNAME")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
 
 # Connect to the Neo4j database
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
@@ -28,18 +27,34 @@ SET p.text = '##Product\n' +
 RETURN count(p) AS propertySetCount
 ''')
 
-# create text embeddings for products
+# create text embeddings for products — batched for speed
 print("Creating Product Text Embeddings")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 with driver.session(database="neo4j") as session:
-    session.run('''
-    MATCH (n:Product) WHERE size(n.description) <> 0
-    WITH collect(n) AS nodes, toInteger(rand()*$numberOfBatches) AS partition
-    CALL(nodes) {
-        CALL genai.vector.encodeBatch([node IN nodes| node.text], "OpenAI", { token: $token})
-        YIELD index, vector
-        CALL db.create.setNodeVectorProperty(nodes[index], "textEmbedding", vector)
-    } IN TRANSACTIONS OF 1 ROW
-    ''', token=os.getenv("OPENAI_API_KEY"), numberOfBatches=200)
+    products = session.run(
+        "MATCH (n:Product) WHERE size(n.description) <> 0 RETURN elementId(n) AS id, n.text AS text"
+    ).data()
+
+    print(f"  Found {len(products)} products to embed")
+
+    BATCH_SIZE = 500
+    for i in range(0, len(products), BATCH_SIZE):
+        batch = products[i:i + BATCH_SIZE]
+        texts = [p["text"] for p in batch]
+
+        response = client.embeddings.create(
+            input=texts,
+            model="text-embedding-ada-002"
+        )
+
+        for j, item in enumerate(response.data):
+            session.run(
+                "MATCH (n) WHERE elementId(n) = $id CALL db.create.setNodeVectorProperty(n, 'textEmbedding', $vector)",
+                id=batch[j]["id"], vector=item.embedding
+            )
+
+        print(f"  Embedded {min(i + BATCH_SIZE, len(products))}/{len(products)} products")
 
 # create vector index on text embeddings
 print("Creating Product Vector Index")
@@ -52,8 +67,8 @@ OPTIONS {indexConfig: {
 ''', dimension=1536)
 
 # wait for index to come online
+print("Waiting for vector index to come online...")
 driver.execute_query('CALL db.awaitIndex("product_text_embeddings", 300)')
 
-
+print("Done.")
 driver.close()
-

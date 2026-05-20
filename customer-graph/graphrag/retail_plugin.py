@@ -36,6 +36,10 @@ class RetailPlugin:
         """DO not use if you don't have explicit supplier ids. Given a list of supplier ids, gets statistics for the total orders and refunds  as well by product delivered for each supplier. Do not use for customer segment ids."""
         return await self.retail_service.get_supplier_order_product_info(supplier_ids=supplier_ids)
 
+    @kernel_function
+    async def get_top_suppliers_by_returns(self, limit: int = 10) -> Annotated[List[SupplierInfo], "A list of suppliers ranked by number of returns/credit notes"]:
+        """Get the suppliers with the highest number of returns (credit notes). Use this when asked which suppliers have the most returns without specific supplier ids."""
+        return await self.retail_service.get_top_suppliers_by_returns(limit=limit)
 
     @kernel_function
     async def answer_general_question(self, user_question: str) -> Annotated[str, "An answer to user_question"]:

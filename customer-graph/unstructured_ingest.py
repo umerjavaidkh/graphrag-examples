@@ -6,11 +6,12 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import CharacterTextSplitter
 from neo4j import GraphDatabase
 from neo4j_graphrag.embeddings import OpenAIEmbeddings
-from neo4j_graphrag.experimental.components.pdf_loader import DataLoader
-from neo4j_graphrag.experimental.components.text_splitters.langchain import LangChainTextSplitterAdapter
+from neo4j_graphrag.experimental.components.data_loader import DataLoader, PdfLoader
+from neo4j_graphrag.experimental.components.types import LoadedDocument, DocumentInfo
 from neo4j_graphrag.experimental.components.types import PdfDocument, DocumentInfo
 from neo4j_graphrag.experimental.pipeline.kg_builder import SimpleKGPipeline
 from neo4j_graphrag.llm.openai_llm import OpenAILLM
+from neo4j_graphrag.experimental.components.text_splitters.langchain import LangChainTextSplitterAdapter
 from rag_schema_from_onto import getSchemaFromOnto
 
 load_dotenv()
@@ -27,12 +28,12 @@ print(neo4j_schema)
 
 # Create DocumentLoader
 class PdfLoaderWithPageBreaks(DataLoader):
-    async def run(self, filepath: Path) -> PdfDocument:
+    async def run(self, filepath: Path) -> LoadedDocument:
         loader = PyPDFLoader(filepath)
         text = ''
         async for page in loader.alazy_load():
             text = text + " __PAGE__BREAK__ " + page.page_content
-        return PdfDocument(
+        return LoadedDocument(
             text=text,
             document_info=DocumentInfo(path=filepath), )
 
@@ -47,7 +48,7 @@ embedder = OpenAIEmbeddings(model="text-embedding-3-small")
 
 # Instantiate the LLM
 llm = OpenAILLM(
-    model_name="gpt-4o",
+    model_name="gpt-4o-mini",
     model_params={
         #"max_tokens": 3000,
         "response_format": {"type": "json_object"},
@@ -59,13 +60,8 @@ llm = OpenAILLM(
 kg_builder = SimpleKGPipeline(
     llm=llm,
     driver=driver,
-    pdf_loader=PdfLoaderWithPageBreaks(),
-    text_splitter=splitter,
     embedder=embedder,
-    entities=list(neo4j_schema.entities.values()),
-    relations=list(neo4j_schema.relations.values()),
-    potential_schema=neo4j_schema.potential_schema,
-    on_error="IGNORE",
+    schema=neo4j_schema,
     from_pdf=True,
 )
 

@@ -2,10 +2,10 @@ from rdflib import Graph, URIRef, XSD
 from rdflib.namespace import RDF, OWL, RDFS, DefinedNamespace, Namespace
 from neo4j_graphrag.experimental.components.schema import (
     SchemaBuilder,
-    SchemaEntity,
-    SchemaProperty,
-    SchemaRelation,
-    SchemaConfig
+    NodeType,
+    PropertyType,
+    RelationshipType,
+    GraphSchema,
 )
 
 
@@ -64,71 +64,92 @@ def getNLOntology(g):
 
 def getPropertiesForClass(g, cat):
   props = []
-  for dtp in g.subjects(RDFS.domain,cat):
+  for dtp in g.subjects(RDFS.domain, cat):
     if (dtp, RDF.type, OWL.DatatypeProperty) in g:
       propName = getLocalPart(dtp)
-      propDesc = next(g.objects(dtp, RDFS.comment),"")
-      props.append(SchemaProperty(name=propName,
-                                  type=convert_to_di_data_type(next(g.objects(dtp, RDFS.range),"")),
-                                  description=propDesc))
+      propDesc = next(g.objects(dtp, RDFS.comment), "")
+      props.append(PropertyType(
+          name=propName,
+          type=convert_to_di_data_type(next(g.objects(dtp, RDFS.range), "")),
+          description=propDesc
+      ))
   return props
 
-def getSchemaFromOnto(path) -> SchemaConfig:
+def make_node(label, description, props):
+    kwargs = {'label': label, 'description': description}
+    if props:
+        kwargs['properties'] = props
+    return NodeType(**kwargs)
+
+def make_rel(label, description):
+    kwargs = {'label': label, 'description': description}
+    return RelationshipType(**kwargs)
+
+def getSchemaFromOnto(path) -> GraphSchema:
   g = Graph()
   g.parse(path)
   schema_builder = SchemaBuilder()
   classes = {}
-  entities =[]
-  rels =[]
+  entities = []
+  rels = []
   triples = []
   
   for cat in g.subjects(RDF.type, OWL.Class):  
     classes[cat] = None
     label = getLocalPart(cat)
     props = getPropertiesForClass(g, cat)
-    entities.append(SchemaEntity(label=label, 
-                 description=next(g.objects(cat,RDFS.comment),""),
-                 properties=props))
-  for cat in g.objects(None,RDFS.domain):
+    entities.append(make_node(
+        label=label, 
+        description=next(g.objects(cat, RDFS.comment), ""),
+        props=props
+    ))
+  for cat in g.objects(None, RDFS.domain):
      if not cat in classes.keys():
         classes[cat] = None
         label = getLocalPart(cat)
         props = getPropertiesForClass(g, cat)
-        entities.append(SchemaEntity(label=label, 
-                    description=next(g.objects(cat,RDFS.comment),""),
-                    properties=props))
-  for cat in g.objects(None,RDFS.range):
+        entities.append(make_node(
+            label=label, 
+            description=next(g.objects(cat, RDFS.comment), ""),
+            props=props
+        ))
+  for cat in g.objects(None, RDFS.range):
      if not (cat.startswith("http://www.w3.org/2001/XMLSchema#") or cat in classes.keys()):
         classes[cat] = None
         label = getLocalPart(cat)
         props = getPropertiesForClass(g, cat)
-        entities.append(SchemaEntity(label=label, 
-                    description=next(g.objects(cat,RDFS.comment),""),
-                    properties=props))   
+        entities.append(make_node(
+            label=label, 
+            description=next(g.objects(cat, RDFS.comment), ""),
+            props=props
+        ))
   
   for op in g.subjects(RDF.type, OWL.ObjectProperty):  
     relname = getLocalPart(op)
-    rels.append(SchemaRelation(label=relname, 
-                               properties = [],
-                               description=next(g.objects(op,RDFS.comment), "")))
+    rels.append(make_rel(
+        label=relname, 
+        description=next(g.objects(op, RDFS.comment), "")
+    ))
     
   for op in g.subjects(RDF.type, OWL.ObjectProperty):  
     relname = getLocalPart(op)
     doms = []
     rans = []
-    for dom in g.objects(op,RDFS.domain):
+    for dom in g.objects(op, RDFS.domain):
         if dom in classes.keys():
           doms.append(getLocalPart(dom))
-    for ran in g.objects(op,RDFS.range):
+    for ran in g.objects(op, RDFS.range):
         if ran in classes.keys():
           rans.append(getLocalPart(ran))
     for d in doms:
        for r in rans:
-          triples.append((d,relname,r))
+          triples.append((d, relname, r))
     
-  return schema_builder.create_schema_model(entities=entities, 
-                     relations=rels,
-                     potential_schema=triples)
+  return schema_builder.create_schema_model(
+      node_types=entities, 
+      relationship_types=rels,
+      patterns=triples
+  )
 
 
 def getPKs(g):

@@ -37,6 +37,25 @@ class RetailService:
             products.append(p)
 
         return products
+    
+    async def get_top_suppliers_by_returns(self, limit: int = 10) -> list[SupplierInfo]:
+        res = self._driver.execute_query("""
+        MATCH (c:CreditNote)-[:RETURNED_TO_SUPPLIER]->(s:Supplier)
+        WITH s, count(c) AS totalReturns
+        ORDER BY totalReturns DESC
+        LIMIT $limit
+        RETURN s.supplierId AS supplierId,
+            s.name AS name,
+            totalReturns,
+            0 AS totalOrders,
+            [] AS supplierInfos
+        """, limit=limit)
+
+        supplier_infos = []
+        for item in res.records:
+            supplier_info: SupplierInfo = item.data()
+            supplier_infos.append(supplier_info)
+        return supplier_infos
 
     async def get_product_recommendations(self, segment_item_ids_or_codes: List[int]) -> List[Product]:
         res = self._driver.execute_query("""
@@ -59,12 +78,14 @@ class RetailService:
         return products
 
     async def run_customer_segmentation(self) -> List[CustomerSegment]:
-        # drop gds graph and segmentIds if they exists
+        # drop gds graph and segmentIds if they exist
         self._driver.execute_query("CALL gds.graph.drop('co-purchase-123', false) YIELD graphName")
         self._driver.execute_query("MATCH(n:Customer) REMOVE n.segmentId")
-        # perform projection
+        
+        # perform projection using correct relationship paths
         self._driver.execute_query("""
-        MATCH(c1:Customer)-[:ORDERED]->()-[:CONTAINS]->(a:Article)<-[:CONTAINS]-()<-[:ORDERED]-(c2:Customer)
+        MATCH(c1:Customer)-[:PLACED]->()-[:HAS_TRANSACTION]->(:Transaction)-[:CONTAINS]->(a:Article)
+            <-[:CONTAINS]-(:Transaction)<-[:HAS_TRANSACTION]-()<-[:PLACED]-(c2:Customer)
         WHERE elementId(c1) < elementId(c2)
         WITH c1, c2, count(a) AS coPurchaseCount
         WITH gds.graph.project('co-purchase-123', c1, c2, { 
@@ -72,16 +93,24 @@ class RetailService:
             {undirectedRelationshipTypes: ['*']}) AS g
         RETURN g.graphName AS graph, g.nodeCount AS nodes, g.relationshipCount AS rels       
         """)
+        
         # run community detection
         self._driver.execute_query("""
-        CALL gds.leiden.write('co-purchase-123', { relationshipWeightProperty: 'coPurchaseCount', randomSeed: 7474, writeProperty: 'segmentId', concurrency:1})
+        CALL gds.leiden.write('co-purchase-123', { 
+            relationshipWeightProperty: 'coPurchaseCount', 
+            randomSeed: 7474, 
+            writeProperty: 'segmentId', 
+            concurrency:1
+        })
         YIELD communityCount, nodePropertiesWritten
         RETURN communityCount, nodePropertiesWritten   
         """)
+        
         # pull customer segments
         res = self._driver.execute_query("""
         MATCH(c:Customer) WHERE c.segmentId IS NOT NULL
-        RETURN c.segmentId AS segmentId, count(c) AS numberOfCustomers ORDER BY numberOfCustomers DESC
+        RETURN c.segmentId AS segmentId, count(c) AS numberOfCustomers 
+        ORDER BY numberOfCustomers DESC
         """)
 
         segments = []
@@ -90,18 +119,18 @@ class RetailService:
             segments.append(s)
         return segments
 
-    async def get_product_order_supplier_info(self, product_codes: List[int]) -> list[ProductInfo]:
+    async def get_supplier_order_product_info(self, supplier_ids: List[int]) -> list[SupplierInfo]:
         res = self._driver.execute_query("""
         MATCH(p:Product)<-[:VARIANT_OF]-(a:Article)-[:SUPPLIED_BY]->(s)
-        WHERE p.productCode IN $productCodes
-        WITH *,
-          COUNT {MATCH (:Order)-[:CONTAINS]->(a)} AS numberOfOrders, 
-          COUNT {MATCH (:CreditNote)-[:REFUND_OF_ARTICLE]-(a)} AS numberOfRefunds
-        RETURN p.productCode AS productCode,  
-          sum(numberOfOrders) AS totalOrders, 
-          sum(numberOfRefunds) AS totalReturns,
-          collect({supplierId:s.supplierId, name:s.name, numberOfOrders:numberOfOrders, numberOfRefunds:numberOfRefunds}) AS supplierInfos
-        """, productCodes=product_codes)
+        WHERE s.supplierId IN [id IN $supplierIds | toString(id)]
+        WITH DISTINCT p, s, a,
+        COUNT {MATCH (:Order)-[:HAS_TRANSACTION]->(:Transaction)-[:CONTAINS]->(a)} AS numberOfOrders, 
+        COUNT {MATCH (:CreditNote)-[:REFUND_OF_ARTICLE_STRUCTURED]->(a)-[:VARIANT_OF]->(p)} AS numberOfRefunds
+        RETURN s.supplierId AS supplierId,  
+        sum(numberOfOrders) AS totalOrders, 
+        sum(numberOfRefunds) AS totalReturns,
+        collect({productCode:p.productCode, name:s.name, numberOfOrders:numberOfOrders, numberOfRefunds:numberOfRefunds}) AS supplierInfos
+        """, supplierIds=supplier_ids)
 
         product_infos = []
         for item in res.records:
@@ -109,18 +138,18 @@ class RetailService:
             product_infos.append(product_info)
         return product_infos
 
-    async def get_supplier_order_product_info(self, supplier_ids: List[int]) -> list[SupplierInfo]:
+    async def get_product_order_supplier_info(self, product_codes: List[int]) -> list[ProductInfo]:
         res = self._driver.execute_query("""
-        MATCH(p:Product)<-[:VARIANT_OF]-(:Article)-[:SUPPLIED_BY]->(s)
-        WHERE s.supplierId IN $supplierIds
-        WITH DISTINCT p, s,
-          COUNT {MATCH (:Order)-[:CONTAINS]->()-[:VARIANT_OF]->(p)} AS numberOfOrders, 
-          COUNT {MATCH (:CreditNote)-[:REFUND_OF_ARTICLE]-()-[:VARIANT_OF]->(p)} AS numberOfRefunds
-        RETURN s.supplierId AS supplierId,  
-          sum(numberOfOrders) AS totalOrders, 
-          sum(numberOfRefunds) AS totalReturns,
-          collect({productCode:p.productCode, name:s.name, numberOfOrders:numberOfOrders, numberOfRefunds:numberOfRefunds}) AS supplierInfos
-        """, supplierIds=supplier_ids)
+        MATCH(p:Product)<-[:VARIANT_OF]-(a:Article)-[:SUPPLIED_BY]->(s)
+        WHERE p.productCode IN [code IN $productCodes | toString(code)]
+        WITH *,
+        COUNT {MATCH (:Order)-[:HAS_TRANSACTION]->(:Transaction)-[:CONTAINS]->(a)} AS numberOfOrders, 
+        COUNT {MATCH (:CreditNote)-[:REFUND_OF_ARTICLE_STRUCTURED]->(a)} AS numberOfRefunds
+        RETURN p.productCode AS productCode,  
+        sum(numberOfOrders) AS totalOrders, 
+        sum(numberOfRefunds) AS totalReturns,
+        collect({supplierId:s.supplierId, name:s.name, numberOfOrders:numberOfOrders, numberOfRefunds:numberOfRefunds}) AS supplierInfos
+        """, productCodes=product_codes)
 
         supplier_infos = []
         for item in res.records:
