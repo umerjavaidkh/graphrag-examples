@@ -118,11 +118,11 @@ RETURN gds.version()
 
 ---
 
-## Step 5 — Apply Code Fixes
+## Step 5 — Apply Code Fixes (Skip no need)
 
 The `neo4j-graphrag` library has breaking API changes since the original tutorial was written. Before running any scripts, apply all fixes documented in [`CODE_CHANGES.md`](./CODE_CHANGES.md).
 
-Files to update:
+Files are updated already no need to change any code:
 - `rag_schema_from_onto.py` — renamed schema classes
 - `unstructured_ingest.py` — deprecated imports + pass schema directly
 - `ingest_post_processing.py` — replace genai plugin with Python embeddings
