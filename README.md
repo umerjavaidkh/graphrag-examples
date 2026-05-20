@@ -328,8 +328,22 @@ The agent uses Semantic Kernel with OpenAI `gpt-4o-mini` and has access to these
 ### Sample Questions
 
 ```
-What are some good sweaters for spring? Nothing too warm please!
+**Q: What are some good sweaters for spring? Nothing too warm please!**
+
+Here are some great lightweight sweaters perfect for spring:
+
+| # | Product | Description |
+|---|---------|-------------|
+| 1 | [Queen Sweater](https://representative-domain/product/677930) | Lightweight sweatshirt fabric with ribbing around neckline, cuffs, and hem |
+| 2 | [Stressan Light Knit Jumper](https://representative-domain/product/358483) | Light, fine, soft knit with long sleeves, raw edges, rounded hem |
+| 3 | [King Sweater](https://representative-domain/product/716999) | Short top in lightweight sweatshirt fabric with ribbed details |
+| 4 | [Sorbet Sweatshirt](https://representative-domain/product/822888) | Boxy-style top with round neckline and low dropped shoulders |
+| 5 | [Grace Sweater](https://representative-domain/product/796033) | Soft knit with low dropped shoulders and ribbed neckline |
+| 6 | [Sandrine](https://representative-domain/product/827370) | Cotton blend top with wide ribbing around neckline |
+| 7 | [Puff Sweater](https://representative-domain/product/783925) | Soft fine knit with wool, relaxed fit, dropped shoulders |
+| 8 | [Buffy Lace Sweater](https://representative-domain/product/758790) | Soft rib knit with lace sections and dropped shoulders |
 ```
+
 ```
 Which suppliers have the highest number of returns (i.e., credit notes)?
 ```
