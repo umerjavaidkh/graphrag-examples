@@ -52,8 +52,14 @@ cd graphrag-examples/customer-graph
 ## Step 2 — Create Python Virtual Environment
 
 ```bash
-python -m venv venv
+
+brew unlink python@3.14
+brew link --overwrite python@3.13
+
+python3 -m venv venv
 source venv/bin/activate   # Mac/Linux
+
+cd customer-graph
 pip install -r requirements.txt
 ```
 
@@ -96,6 +102,8 @@ docker run -d \
   neo4j:5.18-community
 ```
 
+![](img/docker_image.png)
+
 Wait ~30 seconds for startup, then open Neo4j Browser at **http://localhost:7474**
 Login: `neo4j` / `password123`
 
@@ -103,6 +111,8 @@ Verify plugins loaded:
 ```cypher
 RETURN gds.version()
 ```
+![](img/noe4j_local_image.png)
+
 
 > **Note:** The `genai` plugin is not available on Neo4j 5.18 Community. We handle embeddings in Python instead — see Step 9.
 
