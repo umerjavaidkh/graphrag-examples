@@ -33,12 +33,128 @@ We replace all of this with:
 
 ## Prerequisites
 
-- Python 3.13+
+- Python 3.13+ (only needed for the manual path)
 - Docker Desktop installed and running
 - OpenAI API key
 - Git
 
 ---
+
+## Two Ways to Run
+
+You can run this project either way — pick one:
+
+- **🚀 Quick Start (Docker Compose)** — the entire system (database + Python env + full graph build + agent) comes up with a few commands. Best for just trying it out. See below.
+- **🛠️ Manual Setup (Step-by-step)** — run each step yourself for full control / learning. See [Step 1](#step-1--clone-the-repository) onward.
+
+Both paths use the same code and produce the same graph.
+
+---
+
+## 🚀 Quick Start with Docker Compose
+
+Everything in the manual guide below (Steps 4, 6, 7, 8, 9, 10) is automated here. The only manual touch-points are cloning the repo and pasting your OpenAI key.
+
+### Runs as a separate, isolated instance (no conflicts)
+
+This stack is intentionally namespaced so it can run **alongside any existing Neo4j** you already have in Docker. Nothing here reuses the default names or ports:
+
+| Resource | This project | Default / your existing Neo4j |
+|---|---|---|
+| Compose project | `customer-graphrag` | — |
+| Container name | `customer-graphrag-neo4j` | `neo4j` |
+| Browser (host port) | **7475** → `http://localhost:7475` | 7474 |
+| Bolt (host port) | **7688** → `bolt://localhost:7688` | 7687 |
+| Data volume | `customer-graphrag_neo4j_data` | — |
+| Logs volume | `customer-graphrag_neo4j_logs` | — |
+| Network | `customer-graphrag_default` | — |
+
+- Login for **this** instance: `neo4j` / `password123`.
+- The app containers reach the DB over the internal Compose network (`bolt://neo4j:7687`), which is private to this project and never touches the host's `7687`.
+- Your existing Neo4j on `7474`/`7687` keeps running, untouched.
+
+> Want different host ports? Edit the `ports:` mappings under the `neo4j` service in `docker-compose.yml` (left side = host port).
+
+**1. Clone and enter the project**
+
+```bash
+git clone https://github.com/neo4j-product-examples/graphrag-examples.git
+cd graphrag-examples/customer-graph
+```
+
+**2. Add your OpenAI key**
+
+```bash
+cp .env.example .env
+# edit .env and set OPENAI_API_KEY=sk-...
+```
+
+> You do **not** need to change `NEO4J_URI` — Docker Compose automatically points the app at the `neo4j` container.
+
+**3. Start the Neo4j database**
+
+```bash
+docker compose up -d neo4j
+```
+
+This launches Neo4j Community with all plugins (APOC, APOC Extended, GDS), mounts the CSVs into the import directory, and waits until the DB is healthy. Browser available at **http://localhost:7475** (`neo4j` / `password123`) — see the isolation table above for why this won't clash with any existing Neo4j.
+
+**4. Build the graph (one-time, takes several minutes)**
+
+```bash
+docker compose run --rm pipeline
+```
+
+This runs the full ingestion pipeline in order — unstructured PDF ingest → structured CSV import → cross-linking → embeddings + vector index (manual Steps 6–9).
+
+**5. Chat with the agent**
+
+```bash
+docker compose run --rm agent
+```
+
+Type questions at the `User >` prompt; type `exit` to quit.
+
+### Test the Agent
+
+These questions each exercise a different agent capability — a good way to verify the graph built correctly:
+
+| # | Question | Capability exercised |
+|---|----------|----------------------|
+| 1 | `What are some good sweaters for spring? Nothing too warm please!` | Semantic vector search (`search_products`) |
+| 2 | `Which suppliers have the highest number of returns (i.e., credit notes)?` | Supplier returns ranking (`get_top_suppliers_by_returns`) |
+| 3 | `What are the top 3 most returned products for supplier 1616? Get those product codes and find other suppliers who have less returns for each product I can use instead.` | Product → supplier swap analysis |
+| 4 | `Can you run a customer segmentation analysis?` | GDS community detection (`create_customer_segments`) |
+| 5 | `What are the most common product types purchased for each segment?` | Follow-up reasoning over segments |
+| 6 | `How many customers, orders, and articles are in the database?` | Open-ended text-to-Cypher (`answer_general_question`) |
+| 7 | `For the largest customer group, make a creative spring promotional campaign highlighting recommended products. Draft it as an email.` | Recommendations + creative generation |
+
+> If a question returns empty results, that step's data likely didn't load — re-run `docker compose run --rm pipeline` (or `docker compose down -v` first for a clean slate).
+
+**Tear down** (keeps data volumes):
+
+```bash
+docker compose down
+```
+
+To also delete the graph data: `docker compose down -v`.
+
+> **Note:** What the Quick Start automates — the manual guide imports CSVs via `docker cp` + hand-run `LOAD CSV` queries in the Browser (Steps 7–8). Docker Compose mounts `data/` into Neo4j's import dir and runs those same queries as scripts (`load_structured.py`, `create_cross_links.py`), so no manual Cypher is needed.
+
+### Quick Start Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `no configuration file provided: not found` | Running `docker compose` from the repo root | `cd customer-graph` first — that's where `docker-compose.yml` lives |
+| `dependency failed to start: container ... exited (1)` | Neo4j couldn't start | Check `docker logs customer-graphrag-neo4j` |
+| `openai.AuthenticationError: 401 ... Incorrect API key` | Bad `OPENAI_API_KEY` in `.env` | Ensure the line is exactly `OPENAI_API_KEY=sk-...` (no duplicated `OPENAI_API_KEY=` prefix, no quotes/spaces) |
+| Port `7475`/`7688` already in use | Another process is using the mapped host port | Edit the `ports:` mapping under the `neo4j` service in `docker-compose.yml` |
+
+---
+
+## 🛠️ Manual Setup
+
+The remaining steps describe the manual, step-by-step workflow. Skip these if you used the Quick Start above.
 
 ## Step 1 — Clone the Repository
 
@@ -169,6 +285,8 @@ docker exec neo4j ls /var/lib/neo4j/import/
 
 ### 7b — Run LOAD CSV Queries in Neo4j Browser
 
+> **Scripted alternative:** instead of pasting the blocks below, you can run `python load_structured.py` (after copying the CSVs in 7a). It executes these exact queries in order.
+
 Run each block **one at a time, in this exact order**:
 
 **1. Suppliers**
@@ -248,7 +366,10 @@ MERGE (t)-[:CONTAINS]->(a);
 
 ## Step 8 — Create Cross-Links Between Structured and Unstructured Data
 
-The LLM extracts `orderId` and `articleId` as integers from PDFs, but `LOAD CSV` imports them as strings by default. This causes joins between structured (CSV) and unstructured (PDF) nodes to silently fail. Run these three queries in Neo4j Browser to fix the types and create the cross-links:
+The LLM extracts `orderId` and `articleId` as integers from PDFs, but `LOAD CSV` imports them as strings by default. This causes joins between structured (CSV) and unstructured (PDF) nodes to silently fail. Run these three queries in Neo4j Browser to fix the types and create the cross-links.
+
+> **Scripted alternative:** run `python create_cross_links.py` to apply all three queries (and verify the link counts) automatically.
+
 
 **Fix Article ID type (string → integer):**
 ```cypher

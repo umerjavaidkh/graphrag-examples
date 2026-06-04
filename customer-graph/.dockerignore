@@ -1,0 +1,9 @@
+venv/
+graphrag_venv/
+__pycache__/
+*.pyc
+.env
+.git/
+.idea/
+.ipynb_checkpoints/
+scratch/

@@ -1,0 +1,78 @@
+# Project name isolates this stack's containers, network and volumes so it
+# never collides with any other Neo4j you already run in Docker.
+name: customer-graphrag
+
+services:
+  # Neo4j Community Edition with the plugins required by this project
+  # (APOC, APOC Extended, Graph Data Science). Replaces README Step 4.
+  neo4j:
+    image: neo4j:5.18-community
+    container_name: customer-graphrag-neo4j   # unique name, won't clash with an existing "neo4j"
+    ports:
+      - "7475:7474"   # Neo4j Browser  -> http://localhost:7475 (host 7474 left free for your other instance)
+      - "7688:7687"   # Bolt           -> bolt://localhost:7688 (host 7687 left free for your other instance)
+    environment:
+      NEO4J_AUTH: neo4j/password123
+      NEO4J_PLUGINS: '["apoc", "apoc-extended", "graph-data-science"]'
+      NEO4J_dbms_security_procedures_unrestricted: 'apoc.*,genai.*,gds.*'
+      NEO4J_dbms_security_procedures_allowlist: 'apoc.*,genai.*,gds.*'
+      NEO4J_server_default__listen__address: 0.0.0.0
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      # Mount the CSVs into Neo4j's import dir so LOAD CSV works without
+      # `docker cp` (replaces README Step 7a). NOT read-only: the Neo4j
+      # entrypoint chowns this dir on startup, which fails on a :ro mount.
+      - ./data:/var/lib/neo4j/import
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p password123 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 40s
+
+  # Builds the graph end-to-end: unstructured ingest -> structured CSV import
+  # -> cross-linking -> embeddings/vector index (README Steps 6 - 9).
+  pipeline:
+    build: .
+    image: customer-graphrag-app
+    profiles: ["tools"]   # run explicitly via `docker compose run --rm pipeline`
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Override .env so the app reaches Neo4j over the compose network.
+      # Uses the in-network service name + internal bolt port (7687), which is
+      # isolated from the host, so it does not touch your existing Neo4j.
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: password123
+    command: ["python", "pipeline.py"]
+
+  # Interactive Q&A agent (README Step 10). Run with:
+  #   docker compose run --rm agent
+  agent:
+    build: .
+    image: customer-graphrag-app
+    profiles: ["tools"]   # run explicitly via `docker compose run --rm agent`
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: password123
+    working_dir: /app/graphrag
+    stdin_open: true
+    tty: true
+    command: ["python", "cli_agent.py"]
+
+# Named volumes are prefixed with the project name above
+# (e.g. customer-graphrag_neo4j_data), so they stay separate from other stacks.
+volumes:
+  neo4j_data:
+  neo4j_logs:
