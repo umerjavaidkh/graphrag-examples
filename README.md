@@ -109,6 +109,20 @@ This runs the full ingestion pipeline in order — unstructured PDF ingest → s
 
 **5. Chat with the agent**
 
+You have two options:
+
+**Option A — Browser chat UI (recommended)**
+
+```bash
+docker compose up -d web
+```
+
+Then open **http://localhost:8501**. You get a chat window with clickable sample questions in the sidebar. Stop it later with `docker compose stop web`.
+
+![Browser chat UI answering a supplier-returns question](customer-graph/assets/chat-ui.png)
+
+**Option B — Command-line chat**
+
 ```bash
 docker compose run --rm agent
 ```
@@ -432,10 +446,25 @@ Done.
 
 ## Step 10 — Run the Agent
 
+You can use either the command-line agent or the browser chat UI.
+
+**Command line:**
+
 ```bash
 cd graphrag
 python cli_agent.py
 ```
+
+**Browser chat UI (Streamlit):**
+
+```bash
+cd graphrag
+streamlit run app.py
+```
+
+Then open the URL Streamlit prints (default **http://localhost:8501**). The UI has a chat window plus clickable sample questions in the sidebar. (With Docker, use `docker compose up -d web` instead — see the Quick Start.)
+
+![Browser chat UI answering a supplier-returns question](customer-graph/assets/chat-ui.png)
 
 The agent uses Semantic Kernel with OpenAI `gpt-4o-mini` and has access to these tools:
 - **`search_products`** — semantic vector search over product descriptions
