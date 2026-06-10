@@ -25,11 +25,15 @@ services:
       # entrypoint chowns this dir on startup, which fails on a :ro mount.
       - ./data:/var/lib/neo4j/import
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p password123 'RETURN 1' || exit 1"]
+      # Lightweight TCP check on the Bolt port: fast and avoids the slow
+      # cypher-shell JVM cold start that was timing out the healthcheck.
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/7687' 2>/dev/null || exit 1"]
       interval: 10s
-      timeout: 10s
+      timeout: 15s
       retries: 30
-      start_period: 40s
+      # Plugins (apoc-extended, graph-data-science) download on first boot,
+      # which can take a few minutes on a fresh container.
+      start_period: 300s
 
   # Builds the graph end-to-end: unstructured ingest -> structured CSV import
   # -> cross-linking -> embeddings/vector index (README Steps 6 - 9).
@@ -70,6 +74,26 @@ services:
     stdin_open: true
     tty: true
     command: ["python", "cli_agent.py"]
+
+  # Browser chat UI (Streamlit). Start with:
+  #   docker compose up -d web   ->  open http://localhost:8501
+  web:
+    build: .
+    image: customer-graphrag-app
+    profiles: ["web"]   # start explicitly via `docker compose up -d web`
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: password123
+    working_dir: /app/graphrag
+    ports:
+      - "8501:8501"
+    command: ["streamlit", "run", "app.py", "--server.address=0.0.0.0", "--server.port=8501"]
 
 # Named volumes are prefixed with the project name above
 # (e.g. customer-graphrag_neo4j_data), so they stay separate from other stacks.
