@@ -166,6 +166,43 @@ To also delete the graph data: `docker compose down -v`.
 
 ---
 
+## 🧪 Agent Evaluation Suite
+
+A 10-question suite that exercises every agent capability end-to-end. It is a smoke / regression check (each answer must run without error, be non-empty, and contain at least one expected keyword) — not a strict accuracy benchmark, since LLM phrasing varies.
+
+Run it (after the graph is built):
+
+```bash
+# Docker
+docker compose run --rm agent python eval_agent.py
+
+# or manually
+cd graphrag && python eval_agent.py
+```
+
+The script prints each question, a snippet of the answer, and `PASS`/`FAIL`, then a final score like `RESULT: 10/10 passed` (exit code `0` when all pass).
+
+| # | Question | Capability exercised |
+|---|----------|----------------------|
+| 1 | What are some good lightweight sweaters for spring? Nothing too warm please. | Semantic vector search (`search_products`) |
+| 2 | Which suppliers have the highest number of returns (i.e., credit notes)? | Supplier returns ranking (`get_top_suppliers_by_returns`) |
+| 3 | What are the top 3 most returned products for supplier 1616? Find other suppliers with fewer returns I can use instead. | Product → supplier swap analysis |
+| 4 | Can you run a customer segmentation analysis? | GDS community detection (`create_customer_segments`) |
+| 5 | What are the most common product types purchased for each segment? | Follow-up reasoning over segments |
+| 6 | How many customers are in the database? | Open-ended text-to-Cypher (`answer_general_question`) |
+| 7 | How many orders and articles are in the database? | Open-ended text-to-Cypher (`answer_general_question`) |
+| 8 | Show me the total orders and returns for supplier 1616. | Supplier order/return stats (`get_supplier_order_product_info`) |
+| 9 | Recommend some products for customers who tend to buy sweaters. | Recommendations (`recommend_products`) |
+| 10 | For the largest customer segment, draft a short creative spring promotional email highlighting recommended products. | Recommendations + creative generation |
+
+> **Demo:** the chat UI answering one of these questions:
+>
+> ![Browser chat UI answering a supplier-returns question](customer-graph/assets/chat-ui.png)
+>
+> _Video walkthrough: drag a screen recording (`.mp4`/`.mov`) into a GitHub issue or PR comment, then paste the generated `https://github.com/.../assets/...` link here — GitHub renders it inline as a player._
+
+---
+
 ## 🛠️ Manual Setup
 
 The remaining steps describe the manual, step-by-step workflow. Skip these if you used the Quick Start above.
