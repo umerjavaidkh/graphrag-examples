@@ -6,6 +6,20 @@
 
 ---
 
+## 🎥 Demo
+
+A walkthrough of the browser chat UI running the [10-question evaluation suite](#-agent-evaluation-suite) (10/10 passing).
+
+<video src="https://github.com/umerjavaidkh/graphrag-examples/assets/eval-demo.mp4" controls width="100%"></video>
+
+https://github.com/umerjavaidkh/graphrag-examples/raw/main/customer-graph/assets/eval-demo.mp4
+
+> **To add the video:** drop your recording at `customer-graph/assets/eval-demo.mp4` and commit it. GitHub renders committed `.mp4` files inline from the `raw` link above; for the most reliable inline player, drag the file into the PR description and paste the generated `https://github.com/.../assets/...` URL into the `<video src=...>` tag.
+
+![Browser chat UI answering a supplier-returns question](customer-graph/assets/chat-ui.png)
+
+---
+
 ## What This Project Does
 
 Builds a GraphRAG (Graph Retrieval-Augmented Generation) system over a fashion retail dataset by combining:
@@ -163,6 +177,63 @@ To also delete the graph data: `docker compose down -v`.
 | `dependency failed to start: container ... exited (1)` | Neo4j couldn't start | Check `docker logs customer-graphrag-neo4j` |
 | `openai.AuthenticationError: 401 ... Incorrect API key` | Bad `OPENAI_API_KEY` in `.env` | Ensure the line is exactly `OPENAI_API_KEY=sk-...` (no duplicated `OPENAI_API_KEY=` prefix, no quotes/spaces) |
 | Port `7475`/`7688` already in use | Another process is using the mapped host port | Edit the `ports:` mapping under the `neo4j` service in `docker-compose.yml` |
+
+---
+
+## 🧪 Agent Evaluation Suite
+
+A 10-question suite that exercises every agent capability end-to-end. It is a smoke / regression check (each answer must run without error, be non-empty, and contain at least one expected keyword) — not a strict accuracy benchmark, since LLM phrasing varies.
+
+Run it (after the graph is built):
+
+```bash
+# Docker
+docker compose run --rm agent python eval_agent.py
+
+# or manually
+cd graphrag && python eval_agent.py
+```
+
+The script prints each question, a snippet of the answer, and `PASS`/`FAIL`, then a final score like `RESULT: 10/10 passed` (exit code `0` when all pass).
+
+| # | Question | Capability exercised |
+|---|----------|----------------------|
+| 1 | What are some good lightweight sweaters for spring? Nothing too warm please. | Semantic vector search (`search_products`) |
+| 2 | Which suppliers have the highest number of returns (i.e., credit notes)? | Supplier returns ranking (`get_top_suppliers_by_returns`) |
+| 3 | What are the top 3 most returned products for supplier 1616? Find other suppliers with fewer returns I can use instead. | Product → supplier swap analysis |
+| 4 | Can you run a customer segmentation analysis? | GDS community detection (`create_customer_segments`) |
+| 5 | Show me the order and return statistics for product code 759871, including which suppliers provide it. | Product order/supplier stats (`get_product_order_supplier_info`) |
+| 6 | How many customers are in the database? | Open-ended text-to-Cypher (`answer_general_question`) |
+| 7 | How many orders and articles are in the database? | Open-ended text-to-Cypher (`answer_general_question`) |
+| 8 | Show me the total orders and returns for supplier 1616. | Supplier order/return stats (`get_supplier_order_product_info`) |
+| 9 | Recommend some products for customers in the largest customer segment (segment 2). | Recommendations (`recommend_products`) |
+| 10 | For the largest customer segment, draft a short creative spring promotional email highlighting recommended products. | Recommendations + creative generation |
+
+<details>
+<summary>Latest run result: <b>10/10 passed</b></summary>
+
+```
+======================================================================
+RESULT: 10/10 passed
+======================================================================
+  [ 1] PASS  Semantic vector search (search_products)
+  [ 2] PASS  Supplier returns ranking (get_top_suppliers_by_returns)
+  [ 3] PASS  Product -> supplier swap analysis (get_supplier_order_product_info)
+  [ 4] PASS  GDS community detection (create_customer_segments)
+  [ 5] PASS  Product order/supplier stats (get_product_order_supplier_info)
+  [ 6] PASS  Open-ended text-to-Cypher (answer_general_question)
+  [ 7] PASS  Open-ended text-to-Cypher (answer_general_question)
+  [ 8] PASS  Supplier order/return stats (get_supplier_order_product_info)
+  [ 9] PASS  Recommendations (recommend_products)
+  [10] PASS  Recommendations + creative generation
+```
+</details>
+
+> **Demo:** the chat UI answering one of these questions:
+>
+> ![Browser chat UI answering a supplier-returns question](customer-graph/assets/chat-ui.png)
+>
+> _Video walkthrough: drag a screen recording (`.mp4`/`.mov`) into a GitHub issue or PR comment, then paste the generated `https://github.com/.../assets/...` link here — GitHub renders it inline as a player._
 
 ---
 
