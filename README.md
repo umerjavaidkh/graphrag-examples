@@ -6,6 +6,20 @@
 
 ---
 
+## 🎥 Demo
+
+A walkthrough of the browser chat UI running the [10-question evaluation suite](#-agent-evaluation-suite) (10/10 passing).
+
+<video src="https://github.com/umerjavaidkh/graphrag-examples/assets/eval-demo.mp4" controls width="100%"></video>
+
+https://github.com/umerjavaidkh/graphrag-examples/raw/main/customer-graph/assets/eval-demo.mp4
+
+> **To add the video:** drop your recording at `customer-graph/assets/eval-demo.mp4` and commit it. GitHub renders committed `.mp4` files inline from the `raw` link above; for the most reliable inline player, drag the file into the PR description and paste the generated `https://github.com/.../assets/...` URL into the `<video src=...>` tag.
+
+![Browser chat UI answering a supplier-returns question](customer-graph/assets/chat-ui.png)
+
+---
+
 ## What This Project Does
 
 Builds a GraphRAG (Graph Retrieval-Augmented Generation) system over a fashion retail dataset by combining:
