@@ -121,16 +121,43 @@ def build_agent():
     return kernel, settings
 
 
+# Phrases that signal the agent could not actually answer (tool error, empty
+# graph, or a refusal). These must FAIL even though the text is non-empty —
+# otherwise a "sorry, I couldn't retrieve that" reply would pass on keywords.
+FAILURE_MARKERS = [
+    "unable to",
+    "i'm unable",
+    "wasn't able",
+    "was not able",
+    "couldn't",
+    "could not",
+    "can't retrieve",
+    "cannot currently",
+    "no data",
+    "no information",
+    "there are 0",
+    "0 customers",
+    "0 orders",
+    "0 articles",
+    "error while",
+    "an error occurred",
+    "failed after",
+    "traceback",
+]
+
+
 def grade(answer: str, expect_any) -> tuple[bool, str]:
     text = (answer or "").strip()
     if not text:
         return False, "empty answer"
     low = text.lower()
-    if low.startswith("error") or "failed after" in low or "traceback" in low:
+    if low.startswith("error"):
         return False, "agent error"
-    if expect_any:
-        if not any(k.lower() in low for k in expect_any):
-            return False, f"missing any of {expect_any}"
+    for marker in FAILURE_MARKERS:
+        if marker in low:
+            return False, f"failure phrase: '{marker}'"
+    if expect_any and not any(k.lower() in low for k in expect_any):
+        return False, f"missing any of {expect_any}"
     return True, "ok"
 
 
