@@ -10,13 +10,9 @@
 
 A walkthrough of the browser chat UI running the [10-question evaluation suite](#-agent-evaluation-suite) (10/10 passing).
 
-<video src="https://raw.githubusercontent.com/umerjavaidkh/graphrag-examples/main/customer-graph/assets/eval-demo.webm" controls width="100%"></video>
+[![Watch the demo on YouTube](customer-graph/assets/chat-ui.png)](https://youtu.be/MDa8uhKKCHo)
 
-▶️ [Watch the eval demo](https://raw.githubusercontent.com/umerjavaidkh/graphrag-examples/main/customer-graph/assets/eval-demo.webm) (`customer-graph/assets/eval-demo.webm`)
-
-> The inline player above resolves once this branch is merged to `main`. To preview it on the feature branch, replace `main` with the branch name in the URL.
-
-![Browser chat UI answering a supplier-returns question](customer-graph/assets/chat-ui.png)
+▶️ **[Watch the demo on YouTube](https://youtu.be/MDa8uhKKCHo)** &nbsp;|&nbsp; or download the [raw recording](https://raw.githubusercontent.com/umerjavaidkh/graphrag-examples/main/customer-graph/assets/eval-demo.webm) (`customer-graph/assets/eval-demo.webm`)
 
 ---
 
