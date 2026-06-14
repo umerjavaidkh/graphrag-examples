@@ -17,6 +17,7 @@ or via Docker:
 
 import asyncio
 import os
+import re
 import sys
 
 from dotenv import load_dotenv
@@ -68,9 +69,9 @@ EVAL_SUITE = [
     },
     {
         "id": 5,
-        "capability": "Follow-up reasoning over segments",
-        "question": "What are the most common product types purchased for each segment?",
-        "expect_any": ["segment", "product type", "type"],
+        "capability": "Product order/supplier stats (get_product_order_supplier_info)",
+        "question": "Show me the order and return statistics for product code 759871, including which suppliers provide it.",
+        "expect_any": ["759871", "supplier", "order"],
     },
     {
         "id": 6,
@@ -93,7 +94,7 @@ EVAL_SUITE = [
     {
         "id": 9,
         "capability": "Recommendations (recommend_products)",
-        "question": "Recommend some products for customers who tend to buy sweaters.",
+        "question": "Recommend some products for customers in the largest customer segment (segment 2).",
         "expect_any": ["product", "recommend"],
     },
     {
@@ -135,15 +136,23 @@ FAILURE_MARKERS = [
     "cannot currently",
     "no data",
     "no information",
-    "there are 0",
-    "0 customers",
-    "0 orders",
-    "0 articles",
+    "no specific",
+    "no relevant",
+    "no recommendations",
+    "no product recommendations",
+    "lack of data",
+    "insufficient",
+    "not available at this time",
+    "no purchase records",
     "error while",
     "an error occurred",
     "failed after",
     "traceback",
 ]
+
+# A genuine "the count is zero" answer (e.g. "there are 0 customers"). Uses a
+# word boundary so a real number like "1,000 customers" does NOT match.
+ZERO_COUNT_RE = re.compile(r"\b0\s+(customers|orders|articles|products|suppliers|results)\b")
 
 
 def grade(answer: str, expect_any) -> tuple[bool, str]:
@@ -153,6 +162,8 @@ def grade(answer: str, expect_any) -> tuple[bool, str]:
     low = text.lower()
     if low.startswith("error"):
         return False, "agent error"
+    if ZERO_COUNT_RE.search(low):
+        return False, "zero-count answer (empty graph?)"
     for marker in FAILURE_MARKERS:
         if marker in low:
             return False, f"failure phrase: '{marker}'"

@@ -188,12 +188,32 @@ The script prints each question, a snippet of the answer, and `PASS`/`FAIL`, the
 | 2 | Which suppliers have the highest number of returns (i.e., credit notes)? | Supplier returns ranking (`get_top_suppliers_by_returns`) |
 | 3 | What are the top 3 most returned products for supplier 1616? Find other suppliers with fewer returns I can use instead. | Product → supplier swap analysis |
 | 4 | Can you run a customer segmentation analysis? | GDS community detection (`create_customer_segments`) |
-| 5 | What are the most common product types purchased for each segment? | Follow-up reasoning over segments |
+| 5 | Show me the order and return statistics for product code 759871, including which suppliers provide it. | Product order/supplier stats (`get_product_order_supplier_info`) |
 | 6 | How many customers are in the database? | Open-ended text-to-Cypher (`answer_general_question`) |
 | 7 | How many orders and articles are in the database? | Open-ended text-to-Cypher (`answer_general_question`) |
 | 8 | Show me the total orders and returns for supplier 1616. | Supplier order/return stats (`get_supplier_order_product_info`) |
-| 9 | Recommend some products for customers who tend to buy sweaters. | Recommendations (`recommend_products`) |
+| 9 | Recommend some products for customers in the largest customer segment (segment 2). | Recommendations (`recommend_products`) |
 | 10 | For the largest customer segment, draft a short creative spring promotional email highlighting recommended products. | Recommendations + creative generation |
+
+<details>
+<summary>Latest run result: <b>10/10 passed</b></summary>
+
+```
+======================================================================
+RESULT: 10/10 passed
+======================================================================
+  [ 1] PASS  Semantic vector search (search_products)
+  [ 2] PASS  Supplier returns ranking (get_top_suppliers_by_returns)
+  [ 3] PASS  Product -> supplier swap analysis (get_supplier_order_product_info)
+  [ 4] PASS  GDS community detection (create_customer_segments)
+  [ 5] PASS  Product order/supplier stats (get_product_order_supplier_info)
+  [ 6] PASS  Open-ended text-to-Cypher (answer_general_question)
+  [ 7] PASS  Open-ended text-to-Cypher (answer_general_question)
+  [ 8] PASS  Supplier order/return stats (get_supplier_order_product_info)
+  [ 9] PASS  Recommendations (recommend_products)
+  [10] PASS  Recommendations + creative generation
+```
+</details>
 
 > **Demo:** the chat UI answering one of these questions:
 >

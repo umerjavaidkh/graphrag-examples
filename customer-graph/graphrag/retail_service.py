@@ -59,10 +59,11 @@ class RetailService:
 
     async def get_product_recommendations(self, segment_item_ids_or_codes: List[int]) -> List[Product]:
         res = self._driver.execute_query("""
-        //recommend from product codes
-        MATCH (customer:Customer)-[:ORDERED]->()-[:CONTAINS]->()-[:VARIANT_OF]->
-        (interestedInProducts:Product)<-[:VARIANT_OF]-(interestedInArticles:Article)<-[:CONTAINS]-()<-[:ORDERED]
-        -(:Customer)-[:ORDERED]->()-[:CONTAINS]->(recArticle:Article)-[:VARIANT_OF]->(product:Product)
+        //recommend from product codes — traverse the actual purchase path
+        //Customer-[:PLACED]->Order-[:HAS_TRANSACTION]->Transaction-[:CONTAINS]->Article-[:VARIANT_OF]->Product
+        MATCH (customer:Customer)-[:PLACED]->()-[:HAS_TRANSACTION]->()-[:CONTAINS]->()-[:VARIANT_OF]->
+        (interestedInProducts:Product)<-[:VARIANT_OF]-(interestedInArticles:Article)<-[:CONTAINS]-()<-[:HAS_TRANSACTION]-()<-[:PLACED]
+        -(:Customer)-[:PLACED]->()-[:HAS_TRANSACTION]->()-[:CONTAINS]->(recArticle:Article)-[:VARIANT_OF]->(product:Product)
         WHERE (interestedInArticles.articleId IN $itemIds) 
             OR (interestedInProducts.productCode IN $itemIds)
             OR (customer.segmentId IN $itemIds)
