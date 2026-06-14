@@ -10,11 +10,11 @@
 
 A walkthrough of the browser chat UI running the [10-question evaluation suite](#-agent-evaluation-suite) (10/10 passing).
 
-<video src="https://github.com/umerjavaidkh/graphrag-examples/assets/eval-demo.mp4" controls width="100%"></video>
+<video src="https://raw.githubusercontent.com/umerjavaidkh/graphrag-examples/main/customer-graph/assets/eval-demo.webm" controls width="100%"></video>
 
-https://github.com/umerjavaidkh/graphrag-examples/raw/main/customer-graph/assets/eval-demo.mp4
+▶️ [Watch the eval demo](https://raw.githubusercontent.com/umerjavaidkh/graphrag-examples/main/customer-graph/assets/eval-demo.webm) (`customer-graph/assets/eval-demo.webm`)
 
-> **To add the video:** drop your recording at `customer-graph/assets/eval-demo.mp4` and commit it. GitHub renders committed `.mp4` files inline from the `raw` link above; for the most reliable inline player, drag the file into the PR description and paste the generated `https://github.com/.../assets/...` URL into the `<video src=...>` tag.
+> The inline player above resolves once this branch is merged to `main`. To preview it on the feature branch, replace `main` with the branch name in the URL.
 
 ![Browser chat UI answering a supplier-returns question](customer-graph/assets/chat-ui.png)
 
